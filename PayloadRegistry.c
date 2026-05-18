@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #define REGISTRY "Control Panel"
-#define REGSTRING "MaldevBy0xgu1"
+#define REGSTRING "RegBy0xgu1"
 
 // this is what SystemFunction032 function take as a parameter
 typedef struct
